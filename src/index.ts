@@ -1,6 +1,17 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log('[Startup] Environment check:', {
+    NODE_ENV: process.env.NODE_ENV,
+    PORT: process.env.PORT,
+    HAS_FIREBASE: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+    HAS_GEMINI: !!process.env.GEMINI_API_KEY,
+    REDIS_HOST: process.env.REDIS_HOST,
+    HAS_REDIS_URL: !!(process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL),
+});
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import http from 'http';
 import * as admin from 'firebase-admin';
 import paymentRoutes from './routes/paymentRoutes';
@@ -11,8 +22,6 @@ import ratingRoutes from './routes/ratingRoutes';
 import contractRoutes from './routes/contractRoutes';
 import resumeRoutes from './routes/resumeRoutes';
 import { initSocketIO } from './config/socket';
-
-dotenv.config();
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
