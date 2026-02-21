@@ -9,7 +9,7 @@
     "dev": "ts-node-dev src/index.ts"
   },
   "dependencies": {
-    "@huggingface/inference": "^4.13.12",
+    "@google/generative-ai": "^0.24.1",
     "bullmq": "^4.12.0",
     "cashfree-pg": "^5.1.0",
     "cors": "^2.8.6",

@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import * as admin from 'firebase-admin';
 import crypto from 'crypto';
 import { queueRedisClient, redisClient } from '../config/redis';
-import { hf, HF_MODEL } from '../config/huggingface';
+import { geminiModel } from '../config/gemini';
 import { getIO, userSocketMap } from '../config/socket';
 import { PARSE_PROMPT, SCORE_PROMPT } from '../modules/resume/resume.prompts';
 import { safeParseResume, safeParseScore } from '../modules/resume/resume.parser';
@@ -15,25 +15,19 @@ interface ResumeJobData {
     resumeText: string;
 }
 
-async function callHuggingFaceWithTimeout(prompt: string, timeoutMs = 30000): Promise<string> {
-    const hfCall = hf.textGeneration({
-        model: HF_MODEL,
-        inputs: prompt,
-        parameters: {
-            max_new_tokens: 2048,
-            temperature: 0.1,
-            return_full_text: false,
-        },
-    });
-
-    const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Hugging Face timeout after 30s')), timeoutMs)
-    );
-
-    const result = await Promise.race([hfCall, timeout]);
-    const text = result.generated_text;
-    if (!text) throw new Error('Empty response from Hugging Face');
-    return text;
+async function callGeminiWithTimeout(prompt: string, timeoutMs = 25000): Promise<string> {
+    try {
+        const result = await geminiModel.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        if (!text) throw new Error('Empty response from Gemini');
+        return text;
+    } catch (e: any) {
+        if (e.message?.includes('404')) {
+            throw new Error(`Gemini 2.0 Flash error (404). This often happens if the model name is incorrect or your API key is restricted. Details: ${e.message}`);
+        }
+        throw e;
+    }
 }
 
 new Worker<ResumeJobData>(
@@ -42,9 +36,9 @@ new Worker<ResumeJobData>(
         const { userId, resumeText } = job.data;
 
         // Truncate to prevent token overflow
-        const safeText = resumeText.slice(0, 4500);
+        const safeText = resumeText.slice(0, 5000);
 
-        // --- Cache check (by content hash) ---
+        // --- Cache check ---
         const hash = crypto.createHash('sha256').update(safeText).digest('hex');
         const cacheKey = `${CACHE_PREFIX}${hash}`;
         const cachedResult = await redisClient.get(cacheKey);
@@ -57,13 +51,13 @@ new Worker<ResumeJobData>(
         }
 
         // --- Parse Resume ---
-        console.log(`[ResumeWorker] Parsing resume for userId=${userId}, job=${job.id} using ${HF_MODEL}`);
-        const parseText = await callHuggingFaceWithTimeout(PARSE_PROMPT + safeText);
+        console.log(`[ResumeWorker] Parsing resume for userId=${userId}, job=${job.id} using Gemini 2.0 Flash`);
+        const parseText = await callGeminiWithTimeout(PARSE_PROMPT + safeText);
         const parsedData = safeParseResume(parseText);
 
         // --- Score Resume ---
         console.log(`[ResumeWorker] Scoring resume for userId=${userId}, job=${job.id}`);
-        const scoreText = await callHuggingFaceWithTimeout(SCORE_PROMPT + safeText);
+        const scoreText = await callGeminiWithTimeout(SCORE_PROMPT + safeText);
         const scoreData = safeParseScore(scoreText);
 
         const finalResult = { ...parsedData, ...scoreData };
@@ -77,10 +71,8 @@ new Worker<ResumeJobData>(
                     resumeParsed: finalResult,
                     resumeUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
-            console.log(`[ResumeWorker] Saved parsed resume to Firestore for userId=${userId}`);
         } catch (firestoreError) {
             console.error(`[ResumeWorker] Firestore save error:`, firestoreError);
-            // Don't fail the job — client still gets the result via socket
         }
 
         // --- Cache result ---
@@ -103,12 +95,8 @@ function emitToUser(userId: string, data: any) {
         if (socketId) {
             getIO().to(socketId).emit('resume:done', { success: true, data });
             console.log(`[ResumeWorker] Emitted resume:done to socketId=${socketId}`);
-        } else {
-            console.log(`[ResumeWorker] No active socket for userId=${userId}. Client will poll.`);
         }
-    } catch (_) {
-        // Socket not initialized yet (e.g., during tests) — ignore
-    }
+    } catch (_) { }
 }
 
-console.log('[ResumeWorker] Started — listening on "resume-parsing" queue');
+console.log('[ResumeWorker] Listening on Gemini 2.0 Flash...');
