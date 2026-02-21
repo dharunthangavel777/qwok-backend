@@ -3,7 +3,17 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const redisConfig = {
+const redisUrl = process.env.REDIS_URL || process.env.REDIS_PRIVATE_URL;
+
+console.log('[Redis] Initializing with config:', {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || '6379',
+    hasPassword: !!process.env.REDIS_PASSWORD,
+    hasUrl: !!redisUrl,
+    tls: process.env.REDIS_TLS === 'true'
+});
+
+const redisConfig = redisUrl || {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379'),
     password: process.env.REDIS_PASSWORD || undefined,
