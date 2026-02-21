@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import * as admin from 'firebase-admin';
 import crypto from 'crypto';
 import { queueRedisClient, redisClient } from '../config/redis';
-import { geminiModel } from '../config/gemini';
+import { hf, HF_MODEL } from '../config/huggingface';
 import { getIO, userSocketMap } from '../config/socket';
 import { PARSE_PROMPT, SCORE_PROMPT } from '../modules/resume/resume.prompts';
 import { safeParseResume, safeParseScore } from '../modules/resume/resume.parser';
@@ -15,14 +15,24 @@ interface ResumeJobData {
     resumeText: string;
 }
 
-async function callGeminiWithTimeout(prompt: string, timeoutMs = 20000): Promise<string> {
-    const geminiCall = geminiModel.generateContent(prompt);
+async function callHuggingFaceWithTimeout(prompt: string, timeoutMs = 30000): Promise<string> {
+    const hfCall = hf.textGeneration({
+        model: HF_MODEL,
+        inputs: prompt,
+        parameters: {
+            max_new_tokens: 2048,
+            temperature: 0.1,
+            return_full_text: false,
+        },
+    });
+
     const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Gemini timeout after 20s')), timeoutMs)
+        setTimeout(() => reject(new Error('Hugging Face timeout after 30s')), timeoutMs)
     );
-    const result = await Promise.race([geminiCall, timeout]);
-    const text = (await result.response).text();
-    if (!text) throw new Error('Empty response from Gemini');
+
+    const result = await Promise.race([hfCall, timeout]);
+    const text = result.generated_text;
+    if (!text) throw new Error('Empty response from Hugging Face');
     return text;
 }
 
@@ -47,12 +57,13 @@ new Worker<ResumeJobData>(
         }
 
         // --- Parse Resume ---
-        console.log(`[ResumeWorker] Parsing resume for userId=${userId}, job=${job.id}`);
-        const parseText = await callGeminiWithTimeout(PARSE_PROMPT + safeText);
+        console.log(`[ResumeWorker] Parsing resume for userId=${userId}, job=${job.id} using ${HF_MODEL}`);
+        const parseText = await callHuggingFaceWithTimeout(PARSE_PROMPT + safeText);
         const parsedData = safeParseResume(parseText);
 
         // --- Score Resume ---
-        const scoreText = await callGeminiWithTimeout(SCORE_PROMPT + safeText);
+        console.log(`[ResumeWorker] Scoring resume for userId=${userId}, job=${job.id}`);
+        const scoreText = await callHuggingFaceWithTimeout(SCORE_PROMPT + safeText);
         const scoreData = safeParseScore(scoreText);
 
         const finalResult = { ...parsedData, ...scoreData };
