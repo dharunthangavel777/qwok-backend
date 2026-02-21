@@ -1,0 +1,11 @@
+src/config/redis.ts(18,43): error TS2769: No overload matches this call.
+  Overload 1 of 8, '(path: string, options: RedisOptions): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; password: string | undefined; username: string | undefined; tls: {} | undefined; }' is not assignable to parameter of type 'string'.
+  Overload 2 of 8, '(port: number, options: RedisOptions): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; password: string | undefined; username: string | undefined; tls: {} | undefined; }' is not assignable to parameter of type 'number'.
+  Overload 3 of 8, '(port: number, host: string): Redis', gave the following error.
+    Argument of type '{ host: string; port: number; password: string | undefined; username: string | undefined; tls: {} | undefined; }' is not assignable to parameter of type 'number'.
+src/middleware/cashfree.ts(5,40): error TS7030: Not all code paths return a value.
+src/middleware/idempotency.ts(13,38): error TS7030: Not all code paths return a value.
+src/services/escrow/EscrowService.ts(81,17): error TS2367: This comparison appears to be unintentional because the types 'EscrowState.CREATED | EscrowState.PAYMENT_PENDING | EscrowState.LOCKED | EscrowState.DISPUTED' and 'EscrowState.FUNDED' have no overlap.
+src/services/escrow/EscrowService.ts(81,56): error TS2367: This comparison appears to be unintentional because the types 'EscrowState.CREATED | EscrowState.PAYMENT_PENDING | EscrowState.LOCKED | EscrowState.DISPUTED' and 'EscrowState.PARTIALLY_RELEASED' have no overlap.

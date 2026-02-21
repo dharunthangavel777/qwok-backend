@@ -1,0 +1,15 @@
+
+> payment-orchestrator@1.0.0 dev
+> ts-node-dev src/index.ts
+
+[INFO] 10:28:54 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.9.3)
+Compilation error in C:\flutter\ projects\work Hub\backend\payment-orchestrator\src\routes\paymentRoutes.ts
+[ERROR] 10:28:55 ⨯ Unable to compile TypeScript:
+src/routes/paymentRoutes.ts(25,5): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined' is not assignable to parameter of type 'RequestHandlerParams<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+      Type '(req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined' is not assignable to type 'RequestHandler<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+        Types of parameters 'req' and 'req' are incompatible.
+          Type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>' is missing the following properties from type 'Request': cache, credentials, destination, integrity, and 14 more.
+
+Terminate batch job (Y/N)? Terminate batch job (Y/N)? 

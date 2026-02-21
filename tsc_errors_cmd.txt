@@ -1,0 +1,1 @@
+src/routes/adminRoutes.ts(39,34): error TS7030: Not all code paths return a value.
