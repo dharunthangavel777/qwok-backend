@@ -85,7 +85,7 @@ export class UserService {
 
         const userData = userDoc.data()!;
         const profileCompletion = userData.profileCompletion || 0;
-        const threshold = 95;
+        const threshold = 80;
 
         return {
             success: true,

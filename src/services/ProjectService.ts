@@ -61,9 +61,7 @@ export class ProjectService {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) throw new Error("User not found");
 
-            if ((userDoc.data()?.profileCompletion || 0) < 95) {
-                throw new Error("Profile must be at least 95% complete to apply.");
-            }
+
 
             const postRef = this.db.collection(collection).doc(jobId);
             const postDoc = await transaction.get(postRef);
@@ -117,9 +115,7 @@ export class ProjectService {
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) throw new Error("User not found");
 
-            if ((userDoc.data()?.profileCompletion || 0) < 95) {
-                throw new Error("Profile must be at least 95% complete to place a bid.");
-            }
+
 
             const postRef = this.db.collection('project_posts').doc(projectId);
             const postDoc = await transaction.get(postRef);
