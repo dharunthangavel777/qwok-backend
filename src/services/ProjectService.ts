@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import { notificationService } from './NotificationService';
+import { contractService } from './ContractService';
 
 export class ProjectService {
     private get db() { return admin.firestore(); }
@@ -8,7 +9,7 @@ export class ProjectService {
         const { postId, workerId, workerName, title, description, mode, bidAmount } = data;
         if (!postId || !workerId || !title) throw new Error("Missing required fields");
 
-        const collection = mode === 'freelancer' ? 'project_posts' : 'job_posts';
+        const collection = this._getCollection(mode);
 
         const result = await this.db.runTransaction(async (transaction) => {
             const postRef = this.db.collection(collection).doc(postId);
@@ -18,6 +19,7 @@ export class ProjectService {
             if (postDoc.data()?.ownerId !== userId) throw new Error("Only the owner can approve bids");
             if (postDoc.data()?.status === 'filled') throw new Error("Post already filled");
 
+            const postData = postDoc.data() || {};
             transaction.update(postRef, {
                 [`applicants.${workerId}.status`]: 'approved',
                 'status': 'filled'
@@ -27,54 +29,110 @@ export class ProjectService {
             transaction.update(workerAppRef, { 'status': 'approved' });
 
             const projectRef = this.db.collection("projects").doc();
+            const contractId = this.db.collection("contracts").doc().id;
+
             transaction.set(projectRef, {
+                ...postData,
                 id: projectRef.id,
-                postId, ownerId: userId, workerId, workerName: workerName || 'Worker',
-                title, description, mode: mode || 'job',
-                budget: bidAmount || 0,
-                escrowBalance: 0, status: 'ongoing', progress: 0.0,
+                jobId: postId,
+                workerId: workerId,
+                ownerId: postData.ownerId,
+                status: 'setup',
+                budget: parseFloat(bidAmount || 0),
+                requiredDeposit: parseFloat(bidAmount || 0),
+                depositPaid: false,
+                contractId: contractId,
+                milestoneIds: [],
+                escrowBalance: 0,
+                progress: 0.0,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                applicants: admin.firestore.FieldValue.delete(),
+                applicationsCount: admin.firestore.FieldValue.delete(),
+                maxApplications: admin.firestore.FieldValue.delete(),
+            });
+
+            // Automatically create initial contract
+            transaction.set(this.db.collection("contracts").doc(contractId), {
+                id: contractId,
+                projectId: projectRef.id,
+                agreedBudget: parseFloat(bidAmount || 0),
+                platformFee: parseFloat(bidAmount || 0) * 0.10, // Default 10%
+                commissionRate: 0.10,
+                paymentType: 'Fixed',
+                startDate: admin.firestore.FieldValue.serverTimestamp(),
+                ownerAccepted: true, // Owner accepted by approving the bid
+                workerAccepted: false,
+                status: 'pending_worker_signature',
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
 
-            return projectRef.id;
+            return { projectId: projectRef.id, contractId };
         });
 
         await notificationService.sendNotification(
             workerId,
             "Application Accepted! 🎉",
             `Your application for '${title}' has been accepted. View the project to start setup.`,
-            { postId: postId, projectId: result },
+            { postId: postId, projectId: result.projectId, contractId: result.contractId },
             "bid_approved"
         );
 
-        return { success: true, projectId: result };
+        return { success: true, ...result };
+    }
+
+    async processDeposit(projectId: string, amount: number) {
+        const projectRef = this.db.collection("projects").doc(projectId);
+        await projectRef.update({
+            depositPaid: true,
+            escrowBalance: admin.firestore.FieldValue.increment(amount)
+        });
+
+        // Also update the original post if needed, or just the project record
+        return { success: true, depositPaid: true };
+    }
+
+    private _getCollection(mode: string) {
+        return mode === 'freelancer' ? 'project_posts' : 'job_posts';
     }
 
     async applyForJob(userId: string, data: any) {
         const { jobId, applicationData, mode } = data;
         if (!jobId || !applicationData) throw new Error("Missing required fields");
 
-        const collection = mode === 'freelancer' ? 'project_posts' : 'job_posts';
+        const collection = this._getCollection(mode);
 
         await this.db.runTransaction(async (transaction) => {
             const userRef = this.db.collection("users").doc(userId);
             const userDoc = await transaction.get(userRef);
             if (!userDoc.exists) throw new Error("User not found");
 
-
-
             const postRef = this.db.collection(collection).doc(jobId);
             const postDoc = await transaction.get(postRef);
 
             if (!postDoc.exists) throw new Error("Job not found");
             const postData = postDoc.data()!;
-            if (postData.status !== 'approved') throw new Error("This job is no longer accepting applications.");
 
-            const openings = postData.openings || 1;
-            const maxApps = postData.maxApplications || openings;
+            // Validate status
+            if (postData.status !== 'approved' && postData.status !== 'open') {
+                throw new Error("This post is no longer accepting applications.");
+            }
+
+            // Budget Validation for Projects
+            if (mode === 'freelancer' && applicationData.bidAmount) {
+                const bid = Number(applicationData.bidAmount);
+                const min = postData.budgetMin || 0;
+                const max = postData.budgetMax || Infinity;
+
+                if (bid < min || bid > max) {
+                    throw new Error(`Bid amount ₹${bid} is outside the allowed range (₹${min} - ₹${max})`);
+                }
+            }
+
             const currentApps = postData.applicationsCount || 0;
+            const maxApps = postData.maxApplications || 1;
 
-            if (currentApps >= maxApps) throw new Error("Application limit reached for this job.");
+            if (currentApps >= maxApps) throw new Error("Application limit reached.");
 
             transaction.update(postRef, {
                 [`applicants.${userId}`]: {
@@ -84,21 +142,22 @@ export class ProjectService {
                     appliedAt: admin.firestore.FieldValue.serverTimestamp()
                 },
                 'applicationsCount': admin.firestore.FieldValue.increment(1),
-                'status': (currentApps + 1 >= maxApps) ? 'filled' : 'approved'
+                'status': (currentApps + 1 >= maxApps) ? 'filled' : postData.status
             });
 
             const userAppRef = userRef.collection("applications").doc(jobId);
             transaction.set(userAppRef, {
                 status: 'pending',
                 appliedAt: admin.firestore.FieldValue.serverTimestamp(),
-                mode: mode
+                mode: mode,
+                ...applicationData // Include bid details if present
             });
         });
 
         await notificationService.sendNotification(
             applicationData.ownerId || '',
             'New Application 📄',
-            'Someone has applied for your job post.',
+            'Someone has applied for your post.',
             { jobId },
             'job_application'
         );
@@ -107,60 +166,13 @@ export class ProjectService {
     }
 
     async submitBid(userId: string, data: any) {
+        // Reuse applyForJob but with specific bid data mapping
         const { projectId, bidData } = data;
-        if (!projectId || !bidData) throw new Error("Missing required fields");
-
-        await this.db.runTransaction(async (transaction) => {
-            const userRef = this.db.collection("users").doc(userId);
-            const userDoc = await transaction.get(userRef);
-            if (!userDoc.exists) throw new Error("User not found");
-
-
-
-            const postRef = this.db.collection('project_posts').doc(projectId);
-            const postDoc = await transaction.get(postRef);
-
-            if (!postDoc.exists) throw new Error("Project not found");
-            const postData = postDoc.data()!;
-            if (postData.status !== 'approved' && postData.status !== 'open') {
-                throw new Error("This project is no longer accepting proposals.");
-            }
-
-            const currentApps = postData.applicationsCount || 0;
-            const maxApps = postData.maxApplications || 1000;
-
-            if (currentApps >= maxApps) throw new Error("Application limit reached for this project.");
-
-            transaction.update(postRef, {
-                [`applicants.${userId}`]: {
-                    ...bidData,
-                    mode: 'freelancer',
-                    status: 'pending',
-                    appliedAt: admin.firestore.FieldValue.serverTimestamp()
-                },
-                'applicationsCount': admin.firestore.FieldValue.increment(1),
-                'status': (currentApps + 1 >= maxApps) ? 'filled' : postData.status
-            });
-
-            const userAppRef = userRef.collection("applications").doc(projectId);
-            transaction.set(userAppRef, {
-                status: 'pending',
-                appliedAt: admin.firestore.FieldValue.serverTimestamp(),
-                mode: 'freelancer',
-                bidAmount: bidData.bidAmount,
-                suggestedMilestones: bidData.suggestedMilestones
-            });
+        return this.applyForJob(userId, {
+            jobId: projectId,
+            applicationData: bidData,
+            mode: 'freelancer'
         });
-
-        await notificationService.sendNotification(
-            bidData.ownerId || '',
-            'New Proposal 📝',
-            'A new proposal has been submitted for your project.',
-            { projectId },
-            'project_bid'
-        );
-
-        return { success: true };
     }
 
     async completeProject(userId: string, projectId: string) {
@@ -214,7 +226,7 @@ export class ProjectService {
         const { jobId, targetUserId, status, mode } = data;
         if (!jobId || !targetUserId || !status) throw new Error("Missing required fields");
 
-        const collection = mode === 'freelancer' ? 'project_posts' : 'job_posts';
+        const collection = this._getCollection(mode);
 
         await this.db.runTransaction(async (transaction) => {
             const postRef = this.db.collection(collection).doc(jobId);

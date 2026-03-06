@@ -77,4 +77,14 @@ router.post('/agreeToMilestone', verifyAuth, async (req: AuthRequest, res) => {
     }
 });
 
+router.post('/processDeposit', async (req, res, next) => {
+    try {
+        const { projectId, amount } = req.body;
+        const result = await projectService.processDeposit(projectId, amount);
+        res.json(result);
+    } catch (e) {
+        next(e);
+    }
+});
+
 export default router;
