@@ -223,7 +223,7 @@ export class ProjectService {
     }
 
     async updateApplicationStatus(userId: string, data: any) {
-        const { jobId, targetUserId, status, mode } = data;
+        const { jobId, targetUserId, status, mode, rejectionDescription, shortlistGreeting } = data;
         if (!jobId || !targetUserId || !status) throw new Error("Missing required fields");
 
         const collection = this._getCollection(mode);
@@ -235,12 +235,26 @@ export class ProjectService {
             if (!postDoc.exists) throw new Error("Post not found");
             if (postDoc.data()?.ownerId !== userId) throw new Error("Only the owner can update status");
 
-            transaction.update(postRef, {
+            const updateData: any = {
                 [`applicants.${targetUserId}.status`]: status
-            });
+            };
+
+            const workerAppUpdate: any = { status };
+
+            if (rejectionDescription) {
+                updateData[`applicants.${targetUserId}.rejectionDescription`] = rejectionDescription;
+                workerAppUpdate.rejectionDescription = rejectionDescription;
+            }
+
+            if (shortlistGreeting) {
+                updateData[`applicants.${targetUserId}.shortlistGreeting`] = shortlistGreeting;
+                workerAppUpdate.shortlistGreeting = shortlistGreeting;
+            }
+
+            transaction.update(postRef, updateData);
 
             const workerAppRef = this.db.collection("users").doc(targetUserId).collection("applications").doc(jobId);
-            transaction.update(workerAppRef, { 'status': status });
+            transaction.update(workerAppRef, workerAppUpdate);
         });
 
         await notificationService.sendNotification(
