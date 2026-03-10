@@ -129,6 +129,16 @@ export class ProjectService {
                 }
             }
 
+            // Deadline Validation
+            if (postData.deadlineDate) {
+                const deadline = new Date(postData.deadlineDate);
+                // Set deadline to end of day if it's just a date
+                deadline.setHours(23, 59, 59, 999);
+                if (deadline < new Date()) {
+                    throw new Error("The application deadline for this post has passed.");
+                }
+            }
+
             const currentApps = postData.applicationsCount || 0;
             const maxApps = postData.maxApplications || 1;
 
@@ -137,8 +147,10 @@ export class ProjectService {
             transaction.update(postRef, {
                 [`applicants.${userId}`]: {
                     ...applicationData,
+                    applicantName: applicationData.workerName || applicationData.applicantName || "Anonymous",
+                    applicantRole: applicationData.applicantRole || "Professional",
                     mode,
-                    status: 'pending',
+                    status: 'Pending',
                     appliedAt: admin.firestore.FieldValue.serverTimestamp()
                 },
                 'applicationsCount': admin.firestore.FieldValue.increment(1),
@@ -147,7 +159,7 @@ export class ProjectService {
 
             const userAppRef = userRef.collection("applications").doc(jobId);
             transaction.set(userAppRef, {
-                status: 'pending',
+                status: 'Pending',
                 appliedAt: admin.firestore.FieldValue.serverTimestamp(),
                 mode: mode,
                 ...applicationData // Include bid details if present
