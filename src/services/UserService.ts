@@ -27,7 +27,7 @@ export class UserService {
         await notificationService.sendNotification(
             uid,
             "Welcome to Work Hub! 🚀",
-            "We're excited to have you on board. Complete your profile to get started.",
+            "We're excited to have you here. Opportunities, collaborations, and great projects are waiting for you. Let’s get started.",
             {},
             "account_welcome"
         );
@@ -70,8 +70,8 @@ export class UserService {
 
         await notificationService.sendNotification(
             uid,
-            "Withdrawal Pending",
-            `Your request for ₹${amount} has been received and is being processed.`,
+            "Withdrawal Request Received 💸",
+            `Your request for ₹${amount} has been received and is being processed. We’ll notify you once it’s complete.`,
             {},
             "withdrawal_pending"
         );

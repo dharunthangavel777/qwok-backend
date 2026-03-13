@@ -82,8 +82,8 @@ export class ContractService {
 
         await notificationService.sendNotification(
             result.recipientId,
-            'Contract Update',
-            `The contract for your project has been accepted by the ${result.role}.`,
+            'Contract Accepted! ✍️',
+            `The contract for your project has been successfully signed by both parties. Let’s get to work!`,
             { projectId: result.projectId, contractId },
             'contract_accepted'
         );

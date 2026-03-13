@@ -15,6 +15,8 @@ export interface EscrowProject {
     totalAmount: number;
     releasedAmount: number;
     updatedAt: Date;
+    ownerId: string;
+    workerId: string;
 }
 
 export interface IEscrowRepository {
@@ -49,7 +51,7 @@ export class EscrowService {
         return this.repo.getProject(projectId);
     }
 
-    async createEscrow(projectId: string, totalAmount: number) {
+    async createEscrow(projectId: string, totalAmount: number, ownerId: string, workerId: string) {
         const existing = await this.repo.getProject(projectId);
         if (existing) {
             throw new Error('Escrow already exists for this project');
@@ -60,7 +62,9 @@ export class EscrowService {
             state: EscrowState.CREATED,
             totalAmount,
             releasedAmount: 0,
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            ownerId,
+            workerId
         };
         await this.repo.saveProject(project);
         return project;

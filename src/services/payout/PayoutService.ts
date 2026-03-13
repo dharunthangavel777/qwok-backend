@@ -1,5 +1,6 @@
 import { LedgerService } from '../ledger/LedgerService';
 import { TransactionType, TransactionStatus, LedgerTransaction } from '../../models/ledger';
+import { notificationService } from '../NotificationService';
 
 export enum PayoutStatus {
     INITIATED = 'INITIATED',
@@ -109,10 +110,19 @@ export class PayoutService {
         //    Reverse Ledger Transaction immediately? Or mark FAILED and run reversal job?
         //    Best practice: Mark FAILED. Return error.
 
+        // 5. Notify User
+        await notificationService.sendNotification(
+            userId,
+            "Payout Initiated! 💰",
+            `Your earnings of ₹${amount} are on the way to your account. We’ll notify you once they arrive!`,
+            { payoutId },
+            "payout_initiated"
+        );
+
         return { payoutId, status: PayoutStatus.PROCESSING };
     }
 
-    async handlePayoutSettled(payoutId: string, amount: number) {
+    async handlePayoutSettled(payoutId: string, amount: number, userId: string) {
         // Triggered by Webhook (TRANSFER_SUCCESS)
         // Debit: Worker Payable
         // Credit: Cashfree Clearing (Asset) NO!
@@ -127,7 +137,7 @@ export class PayoutService {
             referenceId: payoutId,
             type: TransactionType.PAYOUT_SETTLED,
             status: TransactionStatus.POSTED,
-            metadata: { payoutId },
+            metadata: { payoutId, userId },
             createdAt: new Date(),
             entries: [
                 {
@@ -148,6 +158,15 @@ export class PayoutService {
         };
 
         await this.ledger.recordTransaction(transaction);
+
+        // Notify User
+        await notificationService.sendNotification(
+            userId,
+            "Payout Successful! ✅",
+            `Your funds of ₹${amount} have been successfully settled into your account. Enjoy your earnings!`,
+            { payoutId },
+            "payout_settled"
+        );
     }
 
     async handlePayoutFailed(payoutId: string, userId: string, amount: number) {
@@ -189,5 +208,14 @@ export class PayoutService {
         // Update Daily Limit? Maybe credit back the limit too.
         const todayUsed = this.dailyWithdrawals.get(userId) || 0;
         this.dailyWithdrawals.set(userId, Math.max(0, todayUsed - amount));
+
+        // Notify User
+        await notificationService.sendNotification(
+            userId,
+            "Payout Failed ❌",
+            "We encountered an issue while processing your payout of ₹" + amount + ". The funds have been returned to your wallet.",
+            { payoutId },
+            "payout_failed"
+        );
     }
 }

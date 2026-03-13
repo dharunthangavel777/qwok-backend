@@ -72,8 +72,8 @@ export class ProjectService {
 
         await notificationService.sendNotification(
             workerId,
-            "Application Accepted! 🎉",
-            `Your application for '${title}' has been accepted. View the project to start setup.`,
+            "Your application was approved! 🎉",
+            `Great news! Your bid for '${title}' has been accepted. We can’t wait to see the amazing work you’ll do.`,
             { postId: postId, projectId: result.projectId, contractId: result.contractId },
             "bid_approved"
         );
@@ -169,7 +169,7 @@ export class ProjectService {
         await notificationService.sendNotification(
             applicationData.ownerId || '',
             'New Application 📄',
-            'Someone has applied for your post.',
+            'Someone is interested in your project! Review the new application to find your perfect match.',
             { jobId },
             'job_application'
         );
@@ -226,7 +226,7 @@ export class ProjectService {
         await notificationService.sendNotification(
             result,
             "Project Completed! 🏆",
-            `The owner has marked the project as completed. A verified entry has been added to your portfolio!`,
+            `Congratulations! The owner has marked the project as completed. A verified entry has been added to your portfolio. Well done!`,
             { projectId },
             "project_completed"
         );
@@ -271,8 +271,8 @@ export class ProjectService {
 
         await notificationService.sendNotification(
             targetUserId,
-            'Application Update',
-            `Your application status has been updated to ${status}.`,
+            'Update on your application 📄',
+            `There’s a change in your application status for '${jobId}'. Check it now for more details.`,
             { jobId: jobId },
             'application_status'
         );
@@ -308,8 +308,8 @@ export class ProjectService {
 
         await notificationService.sendNotification(
             ownerId,
-            'Milestone Submitted',
-            'A milestone has been submitted for your review.',
+            'Milestone Submitted 🏆',
+            'Your partner has submitted a milestone for review. Take a look and see the progress being made!',
             { projectId, milestoneId },
             'milestone_submitted'
         );
@@ -343,8 +343,8 @@ export class ProjectService {
 
         await notificationService.sendNotification(
             workerId,
-            'Milestone Rejected',
-            `A milestone requires revisions. Reason: ${reason}`,
+            'Revision Requested 🛠️',
+            `The client has requested some changes on your milestone. Let’s polish it up and get it perfect!`,
             { projectId, milestoneId },
             'milestone_rejected'
         );

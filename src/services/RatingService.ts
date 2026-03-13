@@ -42,8 +42,8 @@ export class RatingService {
 
         await notificationService.sendNotification(
             targetUserId,
-            "New Review Received! ⭐",
-            `Someone has left a ${rating}-star review for you.`,
+            "You’ve got a new rating! ⭐",
+            `Congratulations! Someone has shared their feedback on your recent work. Check it out now.`,
             {},
             "new_rating"
         );

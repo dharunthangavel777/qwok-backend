@@ -1,6 +1,7 @@
 import { LedgerService } from '../ledger/LedgerService';
 import { EscrowService, EscrowState } from '../escrow/EscrowService';
 import { TransactionType, TransactionStatus, LedgerTransaction } from '../../models/ledger';
+import { notificationService } from '../NotificationService';
 
 export class PaymentOrchestrator {
     constructor(
@@ -14,7 +15,7 @@ export class PaymentOrchestrator {
         const totalPayable = bidAmount + platformFee + tax;
 
         try {
-            await this.escrow.createEscrow(projectId, bidAmount);
+            await this.escrow.createEscrow(projectId, bidAmount, userId, 'worker_placeholder'); // Assuming workerId can be passed here
         } catch (e) { }
 
         const orderId = `order_${projectId}_${Date.now()}`;
@@ -58,6 +59,15 @@ export class PaymentOrchestrator {
             ]
         };
         await this.ledger.recordTransaction(txn);
+
+        // Notify Worker
+        await notificationService.sendNotification(
+            workerId,
+            "Funds Released 💰",
+            `Success! The funds of ₹${amount} held in escrow have been released to your wallet.`,
+            { projectId },
+            "escrow_released"
+        );
     }
 
     async resolveDispute(projectId: string, terminalAction: 'RELEASE' | 'REFUND', workerId: string) {
@@ -101,5 +111,19 @@ export class PaymentOrchestrator {
         };
 
         await this.ledger.recordTransaction(transaction);
+
+        // Notify Both Parties
+        const pData = await this.escrow.getProject(projectId);
+        const recipientIds = [pData?.workerId, pData?.ownerId].filter(id => id !== undefined);
+
+        for (const recipientId of recipientIds) {
+            await notificationService.sendNotification(
+                recipientId!,
+                "Dispute Resolved ✅",
+                `The dispute regarding your project has been resolved. Action taken: ${terminalAction}.`,
+                { projectId, action: terminalAction },
+                "dispute_resolved"
+            );
+        }
     }
 }
