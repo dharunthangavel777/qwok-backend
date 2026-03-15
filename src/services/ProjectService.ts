@@ -120,11 +120,11 @@ export class ProjectService {
             const postRef = this.db.collection(collection).doc(jobId);
             const postDoc = await transaction.get(postRef);
 
-            if (!postDoc.exists) throw new Error("Job not found");
+            if (!postDoc.exists || !postDoc.data()) throw new Error("Job not found or invalid");
             const postData = postDoc.data()!;
 
             // Validate status
-            if (postData.status !== 'approved' && postData.status !== 'open') {
+            if (postData.status !== 'approved' && postData.status !== 'open' && postData.status !== 'pending') {
                 throw new Error("This post is no longer accepting applications.");
             }
 
