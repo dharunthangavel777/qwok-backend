@@ -22,16 +22,17 @@ export interface Experiment {
 }
 
 export class ABTestingService {
-  private db: Firestore;
+  private get db() {
+    const { admin } = require('../../index');
+    return admin.firestore();
+  }
   private collection = 'experiments';
 
-  constructor(db: Firestore) {
-    this.db = db;
-  }
+  constructor() {}
 
   async listExperiments(): Promise<Experiment[]> {
     const snapshot = await this.db.collection(this.collection).get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Experiment));
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as Experiment));
   }
 
   async createExperiment(experiment: Omit<Experiment, 'id' | 'createdAt'>): Promise<string> {

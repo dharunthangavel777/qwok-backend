@@ -11,12 +11,13 @@ export interface SecurityEvent {
 }
 
 export class SOCService {
-  private db: Firestore;
+  private get db() {
+    const { admin } = require('../../index');
+    return admin.firestore();
+  }
   private collection = 'security_events';
 
-  constructor(db: Firestore) {
-    this.db = db;
-  }
+  constructor() {}
 
   async logEvent(event: Omit<SecurityEvent, 'id' | 'timestamp' | 'resolved'>): Promise<string> {
     const docRef = await this.db.collection(this.collection).add({
@@ -33,7 +34,7 @@ export class SOCService {
       .limit(limit)
       .get();
 
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SecurityEvent));
+    return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() } as SecurityEvent));
   }
 
   async resolveEvent(id: string): Promise<void> {
@@ -52,7 +53,7 @@ export class SOCService {
       low: 0,
     };
 
-    snapshot.forEach(doc => {
+    snapshot.forEach((doc: any) => {
       const data = doc.data() as SecurityEvent;
       if (summary[data.severity] !== undefined) {
         summary[data.severity]++;

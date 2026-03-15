@@ -23,7 +23,7 @@ import { AuditService } from './finance/AuditService';
 import { ABTestingService } from './ops/ABTestingService';
 import { DeveloperService } from './ops/DeveloperService';
 import { SOCService } from './compliance/SOCService';
-import { admin } from '../index';
+// admin import removed to avoid circular dependency
 
 // Initialize Repositories (Persistent PostgreSQL)
 export const ledgerRepo = new PostgreSqlLedgerRepository();
@@ -36,9 +36,9 @@ export const paymentOrchestrator = new PaymentOrchestrator(ledgerService, escrow
 export const payoutService = new PayoutService(ledgerService);
 export const adminService = new AdminService(ledgerService);
 export const auditService = new AuditService(ledgerService);
-export const abTestingService = new ABTestingService(admin.firestore());
-export const developerService = new DeveloperService(admin.firestore());
-export const socService = new SOCService(admin.firestore());
+export const abTestingService = new ABTestingService();
+export const developerService = new DeveloperService();
+export const socService = new SOCService();
 
 export { 
     notificationService, 

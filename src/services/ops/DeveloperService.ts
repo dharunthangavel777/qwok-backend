@@ -13,12 +13,13 @@ export interface APIKey {
 }
 
 export class DeveloperService {
-  private db: Firestore;
+  private get db() {
+    const { admin } = require('../../index');
+    return admin.firestore();
+  }
   private collection = 'api_keys';
 
-  constructor(db: Firestore) {
-    this.db = db;
-  }
+  constructor() {}
 
   async generateKey(ownerId: string, name: string, permissions: string[]): Promise<APIKey> {
     const key = `qwk_${crypto.randomBytes(24).toString('hex')}`;

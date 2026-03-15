@@ -28,10 +28,26 @@ export const queueRedisClient = new Redis(redisOptions, {
     maxRetriesPerRequest: null,
 });
 
-redisClient.on('error', (err) => console.error('[Redis] Client Error:', err.message));
-queueRedisClient.on('error', (err) => console.error('[Redis-Queue] Client Error:', err.message));
+let redisErrorReported = false;
+let queueRedisErrorReported = false;
 
-redisClient.on('connect', () => console.log('[Redis] Connected successfully'));
+redisClient.on('error', (err) => {
+    if (!redisErrorReported) {
+        console.error('[Redis] Client Error:', err.message);
+        redisErrorReported = true;
+    }
+});
+queueRedisClient.on('error', (err) => {
+    if (!queueRedisErrorReported) {
+        console.error('[Redis-Queue] Client Error:', err.message);
+        queueRedisErrorReported = true;
+    }
+});
+
+redisClient.on('connect', () => {
+    console.log('[Redis] Connected successfully');
+    redisErrorReported = false;
+});
 
 export const IDEMPOTENCY_PREFIX = 'idemp:';
 export const WEBHOOK_PREFIX = 'webhook:';
