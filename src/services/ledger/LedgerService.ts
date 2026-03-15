@@ -28,6 +28,10 @@ export class LedgerService {
         return this.repository.getAllTransactions();
     }
 
+    async getDetailedTransactions(filters?: { accountId?: string; limit?: number }): Promise<LedgerTransaction[]> {
+        return this.repository.getDetailedTransactions(filters);
+    }
+
     private validateDoubleEntry(transaction: LedgerTransaction): void {
         let sumDebits = 0;
         let sumCredits = 0;
@@ -40,16 +44,21 @@ export class LedgerService {
             }
         }
 
-        // Use epsilon for floating point comparison if needed, but optimally store as cents/integers
-        // Here we assume amounts are already safe or we use a small epsilon
-        const epsilon = 0.0001;
-        if (Math.abs(sumDebits - sumCredits) > epsilon) {
+        if (sumDebits !== sumCredits) {
             throw new Error(`Ledger Invariant Violated: Sum of Debits (${sumDebits}) != Sum of Credits (${sumCredits})`);
         }
 
         if (sumDebits <= 0) {
             throw new Error(`Ledger Error: Transaction amount must be positive`);
         }
+    }
+
+    async checkBalanceInvariant(): Promise<{ balanced: boolean; netBalance: number }> {
+        const netBalance = await this.repository.getGlobalBalanceSum();
+        return {
+            balanced: netBalance === 0,
+            netBalance
+        };
     }
 
     private getAccountTypeFromId(accountId: string): string {

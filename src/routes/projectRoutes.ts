@@ -87,4 +87,19 @@ router.post('/processDeposit', async (req, res, next) => {
     }
 });
 
+router.post('/releasePayment', verifyAuth, async (req: AuthRequest, res) => {
+    try {
+        const { projectId, amount } = req.body;
+        const result = await projectService.releasePayment(req.uid!, req.body);
+        
+        // Dynamically import to avoid circular dependencies
+        const { paymentOrchestrator } = require('../services');
+        await paymentOrchestrator.releaseFunds(projectId, amount, result.workerId);
+        
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
 export default router;

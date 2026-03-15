@@ -24,6 +24,11 @@ export const CertificationSchema = z.object({
     date: z.string().nullable().optional(),
 });
 
+export const SkillWithConfidenceSchema = z.object({
+    name: z.string(),
+    confidence: z.number().min(0).max(1),
+});
+
 export const ResumeParseResultSchema = z.object({
     name: z.string().nullable().optional(),
     email: z.string().nullable().optional(),
@@ -31,7 +36,11 @@ export const ResumeParseResultSchema = z.object({
     location: z.string().nullable().optional(),
     bio: z.string().nullable().optional(),
     category: z.string().nullable().optional(),
-    skills: z.array(z.string()).default([]),
+    skills: z.object({
+        technical: z.array(SkillWithConfidenceSchema).default([]),
+        tools: z.array(SkillWithConfidenceSchema).default([]),
+        soft: z.array(SkillWithConfidenceSchema).default([]),
+    }),
     experience: z.number().nullable().optional(),
     education: z.array(EducationSchema).default([]),
     workExperience: z.array(WorkExperienceSchema).default([]),

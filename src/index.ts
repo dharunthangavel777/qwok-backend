@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import * as admin from 'firebase-admin';
+export { admin };
 import paymentRoutes from './routes/paymentRoutes';
 import adminRoutes from './routes/adminRoutes';
 import userRoutes from './routes/userRoutes';
@@ -10,9 +11,10 @@ import projectRoutes from './routes/projectRoutes';
 import ratingRoutes from './routes/ratingRoutes';
 import contractRoutes from './routes/contractRoutes';
 import resumeRoutes from './routes/resumeRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 import { initSocketIO } from './config/socket';
 
-console.log('[Startup] Starting Work Hub Backend...');
+console.log('[Startup] Starting Qwok Backend...');
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -50,6 +52,7 @@ app.use('/api', userRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', ratingRoutes);
 app.use('/api', contractRoutes);
+app.use('/api', notificationRoutes);
 
 // AI Feature Routes
 app.use('/api', resumeRoutes);

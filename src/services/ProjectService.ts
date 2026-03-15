@@ -85,11 +85,21 @@ export class ProjectService {
         const projectRef = this.db.collection("projects").doc(projectId);
         await projectRef.update({
             depositPaid: true,
-            escrowBalance: admin.firestore.FieldValue.increment(amount)
+            status: 'funded', // Move to funded status upon deposit
+            escrowBalance: admin.firestore.FieldValue.increment(amount),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        // Also update the original post if needed, or just the project record
         return { success: true, depositPaid: true };
+    }
+
+    async updateStatus(projectId: string, status: string) {
+        const projectRef = this.db.collection("projects").doc(projectId);
+        await projectRef.update({
+            status,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        return { success: true };
     }
 
     private _getCollection(mode: string) {
@@ -371,6 +381,33 @@ export class ProjectService {
         });
 
         return { success: true };
+    }
+
+    async releasePayment(userId: string, data: any) {
+        const { projectId, milestoneId, amount } = data;
+        if (!projectId || !milestoneId || amount === undefined) throw new Error("Missing required fields");
+
+        const result = await this.db.runTransaction(async (transaction) => {
+            const projectRef = this.db.collection("projects").doc(projectId);
+            const projectDoc = await transaction.get(projectRef);
+            if (!projectDoc.exists) throw new Error("Project not found");
+            const projectData = projectDoc.data()!;
+            
+            if (projectData.ownerId !== userId) throw new Error("Only the owner can release milestone payments");
+            
+            const milestoneRef = projectRef.collection("milestones").doc(milestoneId);
+            const milestoneDoc = await transaction.get(milestoneRef);
+            if (!milestoneDoc.exists) throw new Error("Milestone not found");
+            
+            transaction.update(milestoneRef, {
+                status: 'paid',
+                paidAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            
+            return { workerId: projectData.workerId };
+        });
+
+        return { success: true, workerId: result.workerId };
     }
 }
 

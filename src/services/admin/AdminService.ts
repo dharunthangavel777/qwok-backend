@@ -1,4 +1,7 @@
 import { LedgerService } from '../ledger/LedgerService';
+import pool from '../../config/database';
+import { redisClient } from '../../config/redis';
+import { webhookQueue, projectionQueue } from '../../queues';
 
 export interface SystemHealth {
     status: 'HEALTHY' | 'DEGRADED' | 'DOWN';
@@ -36,20 +39,49 @@ export class AdminService {
             }
         }
 
-        // Infrastructure check (Mocked for in-memory)
+        // Real Infrastructure Checks
+        let postgresStatus: 'CONNECTED' | 'DISCONNECTED' = 'DISCONNECTED';
+        try {
+            await pool.query('SELECT 1');
+            postgresStatus = 'CONNECTED';
+        } catch (e) {
+            console.error('[Health] Postgres Check Failed:', e);
+        }
+
+        let redisStatus: 'CONNECTED' | 'DISCONNECTED' = 'DISCONNECTED';
+        try {
+            await redisClient.ping();
+            redisStatus = 'CONNECTED';
+        } catch (e) {
+            console.error('[Health] Redis Check Failed:', e);
+        }
+
+        // Queue counts
+        let webhookCount = 0;
+        let projectionCount = 0;
+        try {
+            webhookCount = await webhookQueue.count();
+            projectionCount = await projectionQueue.count();
+        } catch (e) {
+            console.error('[Health] Queue Count Failed:', e);
+        }
+
+        const isLedgerBalanced = Math.abs(totalSum) < 0.001;
+        const isHealthy = isLedgerBalanced && postgresStatus === 'CONNECTED' && redisStatus === 'CONNECTED';
+
         return {
-            status: Math.abs(totalSum) < 0.001 ? 'HEALTHY' : 'DEGRADED',
+            status: isHealthy ? 'HEALTHY' : (postgresStatus === 'DISCONNECTED' || redisStatus === 'DISCONNECTED' ? 'DOWN' : 'DEGRADED'),
             ledger: {
                 totalTransactions: transactions.length,
-                isBalanced: Math.abs(totalSum) < 0.001,
+                isBalanced: isLedgerBalanced,
                 lastChecked: new Date()
             },
             infrastructure: {
-                postgres: 'CONNECTED', // Mock
-                redis: 'CONNECTED',    // Mock
+                postgres: postgresStatus,
+                redis: redisStatus,
                 queues: {
-                    webhookQueue: 0,   // Mock
-                    projectionQueue: 0  // Mock
+                    webhookQueue: webhookCount,
+                    projectionQueue: projectionCount
                 }
             },
             uptime: Math.floor((Date.now() - this.startTime) / 1000)

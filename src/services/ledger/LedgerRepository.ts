@@ -4,6 +4,8 @@ export interface ILedgerRepository {
     recordTransaction(transaction: LedgerTransaction): Promise<void>;
     getBalance(accountId: string): Promise<number>;
     getAllTransactions(): Promise<LedgerTransaction[]>;
+    getDetailedTransactions(filters?: { accountId?: string; limit?: number }): Promise<LedgerTransaction[]>;
+    getGlobalBalanceSum(): Promise<number>;
     // ensure consistency in transaction
     runAtomic(operation: () => Promise<void>): Promise<void>;
 }
@@ -49,6 +51,24 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
 
     async getAllTransactions(): Promise<LedgerTransaction[]> {
         return [...this.transactions];
+    }
+
+    async getDetailedTransactions(filters?: { accountId?: string; limit?: number }): Promise<LedgerTransaction[]> {
+        let list = [...this.transactions];
+        if (filters?.accountId) {
+            list = list.filter(tx => tx.entries.some(e => e.accountId === filters.accountId));
+        }
+        return list.slice(0, filters?.limit || 100);
+    }
+
+    async getGlobalBalanceSum(): Promise<number> {
+        let sum = 0;
+        for (const tx of this.transactions) {
+            for (const entry of tx.entries) {
+                sum += (entry.direction === 'CREDIT' ? entry.amount : -entry.amount);
+            }
+        }
+        return sum;
     }
 
     async runAtomic(operation: () => Promise<void>): Promise<void> {

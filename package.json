@@ -1,7 +1,7 @@
 {
   "name": "payment-orchestrator",
   "version": "1.0.0",
-  "description": "Enterprise Payment Orchestration Service for Work Hub",
+  "description": "Enterprise Payment Orchestration Service for Qwok",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -26,6 +26,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.18",
     "@types/node": "^20.8.2",
+    "@types/pg": "^8.18.0",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.2.2"
   }

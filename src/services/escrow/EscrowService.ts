@@ -17,6 +17,9 @@ export interface EscrowProject {
     updatedAt: Date;
     ownerId: string;
     workerId: string;
+    submissionId?: string;
+    ownerApproved?: boolean;
+    workerSubmitted?: boolean;
 }
 
 export interface IEscrowRepository {
@@ -99,10 +102,46 @@ export class EscrowService {
         await this.repo.saveProject(project);
     }
 
-    async raiseDispute(projectId: string) {
+    async submitWork(projectId: string, submissionId: string) {
         const project = await this.repo.getProject(projectId);
         if (!project) throw new Error('Project not found');
-        project.state = EscrowState.DISPUTED;
+        
+        project.workerSubmitted = true;
+        project.submissionId = submissionId;
+        project.updatedAt = new Date();
+        await this.repo.saveProject(project);
+    }
+
+    async approveRelease(projectId: string) {
+        const project = await this.repo.getProject(projectId);
+        if (!project) throw new Error('Project not found');
+
+        project.ownerApproved = true;
+        project.updatedAt = new Date();
+
+        // Multi-sig trigger: Release if both agreed
+        if (project.workerSubmitted && project.ownerApproved) {
+            // Auto-transition to release logic
+            // In a real system, we might want to release specifically the requested amount
+            // For now, we'll release the full amount if it's a fixed-price milestone
+            await this.recordRelease(projectId, project.totalAmount - project.releasedAmount);
+        } else {
+            await this.repo.saveProject(project);
+        }
+    }
+
+    async checkExpiredEscrows() {
+        // Logic to find escrows in FUNDED state for too long without submission
+        // For now, these would be handled by a query in the repository:
+        // SELECT * FROM escrows WHERE state = 'FUNDED' AND updated_at < NOW() - INTERVAL '30 days'
+        // And then calling refundEscrow()
+    }
+
+    async refundEscrow(projectId: string) {
+        const project = await this.repo.getProject(projectId);
+        if (!project) throw new Error('Project not found');
+        project.state = EscrowState.REFUNDED;
+        project.updatedAt = new Date();
         await this.repo.saveProject(project);
     }
 

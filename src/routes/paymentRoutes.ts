@@ -49,8 +49,8 @@ router.post(
     idempotencyMiddleware,
     async (req, res, next) => {
         try {
-            const { userId, amount, beneficiaryId } = req.body;
-            const result = await payoutService.initiateWithdrawal(userId, amount, beneficiaryId);
+            const { userId, amount, beneficiaryId, paymentMethod, details } = req.body;
+            const result = await payoutService.initiateWithdrawal(userId, amount, beneficiaryId, paymentMethod, details);
             res.json(result);
         } catch (e) {
             next(e);

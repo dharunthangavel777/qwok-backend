@@ -46,6 +46,7 @@ export interface LedgerTransaction {
     referenceId: string; // Order ID, Payout ID
     type: TransactionType;
     status: TransactionStatus;
+    description?: string;
     metadata: Record<string, any>;
     createdAt: Date;
     entries: LedgerEntry[];

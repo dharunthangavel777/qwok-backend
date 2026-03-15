@@ -26,7 +26,7 @@ export class UserService {
 
         await notificationService.sendNotification(
             uid,
-            "Welcome to Work Hub! 🚀",
+            "Welcome to Qwok! 🚀",
             "We're excited to have you here. Opportunities, collaborations, and great projects are waiting for you. Let’s get started.",
             {},
             "account_welcome"

@@ -1,6 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import { queueRedisClient, redisClient } from '../config/redis';
-import { ledgerService } from '../services';
+import { ledgerService, projectService } from '../services';
 import { TransactionType, TransactionStatus, LedgerTransaction } from '../models/ledger';
 
 // Initialize Services (Dependency Injection would be better here)
@@ -105,8 +105,13 @@ async function handlePaymentSuccess(payload: any) {
     // 3. Record to Ledger
     await ledgerService.recordTransaction(transaction);
 
-    // 4. Trigger Escrow State Machine (Update Project Status to FUNDED)
-    // TODO: Call ProjectService.updateStatus(funded)
+    // 4. Trigger Escrow State Machine (Update Project Status to FUNDED / ACTIVE)
+    const projectId = orderId.split('_')[1]; // order_<projectId>_<timestamp>
+    if (projectId) {
+        console.log(`Updating Project ${projectId} status to FUNDED/ACTIVE`);
+        await projectService.processDeposit(projectId, orderAmount);
+    }
+    
     console.log(`Escrow Funded for Order ${orderId}`);
 }
 

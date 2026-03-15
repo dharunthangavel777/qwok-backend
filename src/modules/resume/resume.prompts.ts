@@ -8,23 +8,32 @@ Output format:
   "email": "Email or null",
   "phone": "Phone number or null",
   "location": "City, State or null",
-  "bio": "2-3 sentence professional summary or null",
-  "category": "Primary job title or category (e.g. Flutter Developer, UI Designer) or null",
-  "skills": ["Skill1", "Skill2"],
+  "bio": "2-3 sentence professional summary focusing on expertise",
+  "category": "Primary job title or category (e.g. Flutter Developer, UI Designer)",
+  "skills": {
+    "technical": [{"name": "Skill", "confidence": <float 0-1>}],
+    "tools": [{"name": "Tool", "confidence": <float 0-1>}],
+    "soft": [{"name": "Skill", "confidence": <float 0-1>}]
+  },
   "experience": <total years of experience as a number or null>,
   "education": [
     {"degree": "Degree Name", "institution": "School Name", "year": "Year"}
   ],
   "workExperience": [
-    {"title": "Role Name", "company": "Company Name", "duration": "e.g. Jan 2021 - Mar 2023", "description": "Key responsibilities in 1-2 sentences"}
+    {"title": "Role Name", "company": "Company Name", "duration": "e.g. 2021-2023", "description": "Quantifiable achievements"}
   ],
   "projects": [
-    {"title": "Project Title", "description": "Brief description"}
+    {"title": "Project Title", "description": "Technologies used and impact"}
   ],
   "certifications": [
     {"name": "Cert Name", "issuer": "Issuer", "date": "Date"}
   ]
 }
+
+Guidelines:
+1. Categorize skills specifically into technical, tools, and soft.
+2. If text is messy or contains multiple languages, prioritize English extraction.
+3. For categories, use standard titles (e.g., 'Backend Engineer' instead of 'Server side guy').
 
 Resume Text:
 `;

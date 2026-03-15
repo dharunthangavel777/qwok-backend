@@ -22,6 +22,36 @@ export interface WithdrawalRequest {
 export class PayoutService {
     constructor(private ledger: LedgerService) { }
 
+    private async _cashfreeRequest(endpoint: string, method: string, body?: any) {
+        const clientId = process.env.CASHFREE_CLIENT_ID;
+        const clientSecret = process.env.CASHFREE_CLIENT_SECRET;
+        const baseUrl = process.env.NODE_ENV === 'production' 
+            ? 'https://payout-api.cashfree.com/payout/v1' 
+            : 'https://payout-gamma.cashfree.com/payout/v1';
+
+        if (!clientId || !clientSecret) {
+            throw new Error('Cashfree credentials not configured');
+        }
+
+        const headers: any = {
+            'X-Client-Id': clientId,
+            'X-Client-Secret': clientSecret,
+            'Content-Type': 'application/json'
+        };
+
+        const response = await fetch(`${baseUrl}${endpoint}`, {
+            method,
+            headers,
+            body: body ? JSON.stringify(body) : undefined
+        });
+
+        const data: any = await response.json();
+        if (!response.ok || data.status === 'ERROR') {
+            throw new Error(`Cashfree Payout Error: ${data.message || response.statusText}`);
+        }
+        return data;
+    }
+
     // In-memory lock for demo. Use Redis in prod.
     private dailyWithdrawals = new Map<string, number>();
     private MAX_DAILY_LIMIT = 50000; // 50k INR
@@ -30,46 +60,59 @@ export class PayoutService {
         // Generate a unique beneficiary ID
         const beneficiaryId = `bene_${userId}_${Date.now()}`;
 
-        // TODO: Call Cashfree Payouts API to add beneficiary
-        // const response = await cashfree.payouts.addBeneficiary({
-        //     beneId: beneficiaryId,
-        //     name: details.name,
-        //     email: details.email,
-        //     phone: details.phone,
-        //     bankAccount: details.bankAccount,
-        //     ifsc: details.ifsc,
-        //     address1: details.address,
-        //     city: details.city,
-        //     state: details.state,
-        //     pincode: details.pincode
-        // });
+        await this._cashfreeRequest('/addBeneficiary', 'POST', {
+            beneId: beneficiaryId,
+            name: details.name,
+            email: details.email,
+            phone: details.phone,
+            bankAccount: details.bankAccount,
+            ifsc: details.ifsc,
+            vpa: details.vpa, // Support UPI
+            address1: details.address || 'N/A',
+            city: details.city || 'N/A',
+            state: details.state || 'N/A',
+            pincode: details.pincode || '000000'
+        });
 
-        console.log(`[MOCK] Added beneficiary ${beneficiaryId} for user ${userId}`);
+        console.log(`Added real beneficiary ${beneficiaryId} for user ${userId}`);
 
         // Return the ID to be used in withdrawals
         return { beneficiaryId, status: 'ADDED' };
     }
 
-    async initiateWithdrawal(userId: string, amount: number, beneficiaryId: string) {
+    async initiateWithdrawal(userId: string, amount: number, beneficiaryId?: string, paymentMethod?: string, details?: any) {
         // 1. Check Limits & Cooldowns
         const todayUsed = this.dailyWithdrawals.get(userId) || 0;
         if (todayUsed + amount > this.MAX_DAILY_LIMIT) {
             throw new Error('Daily withdrawal limit exceeded');
         }
 
-        // 2. Create Ledger Transaction (Lock Funds)
-        // Debit: User Wallet (Liability)
-        // Credit: Worker Payable (Liability) -> Funds in transit
+        // 2. Resolve Beneficiary
+        let effectiveBeneId = beneficiaryId;
+        if (!effectiveBeneId && details) {
+            // Auto-create beneficiary if details are provided
+            const beneResult = await this.addBeneficiary(userId, {
+                name: details.accountHolder || details.name || 'User ' + userId.substring(0, 5),
+                email: details.email || `${userId}@qwok.com`, // Fallback for demo
+                phone: details.phone || '9999999999',
+                bankAccount: details.accountNumber,
+                ifsc: details.ifscCode,
+                vpa: details.upiId,
+                address1: 'N/A'
+            });
+            effectiveBeneId = beneResult.beneficiaryId;
+        }
+
+        if (!effectiveBeneId) {
+            throw new Error('Beneficiary ID or payment details required');
+        }
+
+        // 3. Create Ledger Transaction (Lock Funds)
         const payoutId = `payout_${userId}_${Date.now()}`;
         const ledgerTxnId = `txn_payout_${payoutId}`;
 
-        // Verify Balance First (Optimistic check, Ledger `recordTransaction` will fail if negative balance is enforced, 
-        // but our simple ledger service currently just records. We should add balance check here.)
         const userBalance = await this.ledger.getBalance(`liability:user_wallet:${userId}`);
-        if (userBalance < amount) { // Balance is Credit (positive for liability). 
-            // Wait, Liability balance: Credit is positive. Debit reduces it.
-            // So if Credit Sum - Debit Sum < Amount -> Fail.
-            // Assuming getBalance returns the "net value".
+        if (userBalance < amount) {
             throw new Error('Insufficient wallet funds');
         }
 
@@ -78,19 +121,19 @@ export class PayoutService {
             referenceId: payoutId,
             type: TransactionType.PAYOUT_INIT,
             status: TransactionStatus.POSTED,
-            metadata: { userId, beneficiaryId },
+            metadata: { userId, beneficiaryId: effectiveBeneId, paymentMethod, amount, payoutId },
             createdAt: new Date(),
             entries: [
                 {
                     transactionId: ledgerTxnId,
                     accountId: `liability:user_wallet:${userId}`,
-                    direction: 'DEBIT', // Reduce User Wallet
+                    direction: 'DEBIT',
                     amount: amount,
                     currency: 'INR'
                 },
                 {
                     transactionId: ledgerTxnId,
-                    accountId: `liability:worker_payable`, // Increase Payable Liability
+                    accountId: `liability:worker_payable`,
                     direction: 'CREDIT',
                     amount: amount,
                     currency: 'INR'
@@ -100,12 +143,17 @@ export class PayoutService {
 
         await this.ledger.recordTransaction(transaction);
 
-        // 3. Update Payout State -> PROCESSING
-        // Save to DB (mock)
+        // 4. Update Payout State
         this.dailyWithdrawals.set(userId, todayUsed + amount);
 
-        // 4. Call Cashfree Payout API
-        // Implementation of Cashfree call...
+        // 5. Call Cashfree Payout API
+        const transferMode = paymentMethod === 'upi' ? 'upi' : 'banktransfer';
+        await this._cashfreeRequest('/requestTransfer', 'POST', {
+            beneId: effectiveBeneId,
+            amount: amount,
+            transferId: payoutId,
+            transferMode
+        });
         // If Cashfree call fails synchronously:
         //    Reverse Ledger Transaction immediately? Or mark FAILED and run reversal job?
         //    Best practice: Mark FAILED. Return error.
