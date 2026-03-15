@@ -14,9 +14,9 @@ router.post('/sendPushNotification', async (req: any, res, next) => {
 
         await notificationService.sendNotification(recipientId, title, body, data, category || 'general');
         
-        res.json({ success: true });
+        return res.json({ success: true });
     } catch (e) {
-        next(e);
+        return next(e);
     }
 });
 
