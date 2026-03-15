@@ -1,7 +1,7 @@
 import { admin } from '../../index';
 
 export class RevenueOptimizationService {
-  private db = admin.firestore();
+  private get db() { return admin.firestore(); }
 
   async getRevenueMetrics() {
     return {

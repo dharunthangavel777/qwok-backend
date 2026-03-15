@@ -11,7 +11,7 @@ export interface MarketplaceStats {
 }
 
 export class MarketplaceAnalyticsService {
-  private db = admin.firestore();
+  private get db() { return admin.firestore(); }
 
   async getGlobalStats(): Promise<MarketplaceStats> {
     const workers = await this.db.collection('users').where('role', '==', 'worker').count().get();

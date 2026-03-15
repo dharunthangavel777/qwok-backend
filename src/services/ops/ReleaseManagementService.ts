@@ -1,7 +1,7 @@
 import { admin } from '../../index';
 
 export class ReleaseManagementService {
-  private db = admin.firestore();
+  private get db() { return admin.firestore(); }
 
   async getReleaseConfig() {
     const doc = await this.db.collection('system_config').doc('release_management').get();

@@ -10,7 +10,7 @@ export interface FraudSignal {
 }
 
 export class FraudIntelligenceService {
-    private db = admin.firestore();
+    private get db() { return admin.firestore(); }
 
     /**
      * Calculate and update the risk score for a user

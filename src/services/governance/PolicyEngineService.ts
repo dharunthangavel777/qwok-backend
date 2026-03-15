@@ -11,7 +11,7 @@ export interface PolicyRule {
 }
 
 export class PolicyEngineService {
-    private db = admin.firestore();
+    private get db() { return admin.firestore(); }
 
     /**
      * Evaluate an entity against all active policies

@@ -1,8 +1,8 @@
 import { admin } from '../../index';
 
 export class GlobalMessagingService {
-  private messaging = admin.messaging();
-  private db = admin.firestore();
+  private get messaging() { return admin.messaging(); }
+  private get db() { return admin.firestore(); }
 
   async broadcastMessage(title: string, body: string, target?: 'all' | 'workers' | 'owners') {
     const topic = target || 'all';

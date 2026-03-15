@@ -1,20 +1,5 @@
 import './config/env'; // First thing: load environment
-import express from 'express';
-import cors from 'cors';
-import http from 'http';
 import * as admin from 'firebase-admin';
-export { admin };
-import paymentRoutes from './routes/paymentRoutes';
-import adminRoutes from './routes/adminRoutes';
-import userRoutes from './routes/userRoutes';
-import projectRoutes from './routes/projectRoutes';
-import ratingRoutes from './routes/ratingRoutes';
-import contractRoutes from './routes/contractRoutes';
-import resumeRoutes from './routes/resumeRoutes';
-import notificationRoutes from './routes/notificationRoutes';
-import { initSocketIO } from './config/socket';
-
-console.log('[Startup] Starting Qwok Backend...');
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -27,6 +12,23 @@ if (!admin.apps.length) {
             : admin.credential.applicationDefault()
     });
 }
+
+export { admin };
+
+import express from 'express';
+import cors from 'cors';
+import http from 'http';
+import paymentRoutes from './routes/paymentRoutes';
+import adminRoutes from './routes/adminRoutes';
+import userRoutes from './routes/userRoutes';
+import projectRoutes from './routes/projectRoutes';
+import ratingRoutes from './routes/ratingRoutes';
+import contractRoutes from './routes/contractRoutes';
+import resumeRoutes from './routes/resumeRoutes';
+import notificationRoutes from './routes/notificationRoutes';
+import { initSocketIO } from './config/socket';
+
+console.log('[Startup] Starting Qwok Backend...');
 
 const app = express();
 const PORT = process.env.PORT || 3000;

@@ -19,7 +19,7 @@ export interface SupportTicket {
 }
 
 export class SupportTicketService {
-  private db = admin.firestore();
+  private get db() { return admin.firestore(); }
 
   async getTickets(status?: string) {
     let query: any = this.db.collection('support_tickets');

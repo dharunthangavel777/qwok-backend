@@ -1,7 +1,7 @@
 import { admin } from '../../index';
 
 export class GrowthEngineService {
-  private db = admin.firestore();
+  private get db() { return admin.firestore(); }
 
   async promoteJob(jobId: string, durationDays: number) {
     const expiresAt = new Date();

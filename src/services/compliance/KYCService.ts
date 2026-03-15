@@ -10,7 +10,7 @@ export interface KYCDocument {
 }
 
 export class KYCService {
-    private db = admin.firestore();
+    private get db() { return admin.firestore(); }
 
     async submitKYC(userId: string, type: KYCType, documents: KYCDocument[]): Promise<void> {
         await this.db.collection('verifications').doc(userId).set({
