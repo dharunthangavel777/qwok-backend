@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { handleCashfreeWebhook } from '../controllers/webhookController';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 import { verifyCashfreeSignature } from '../middleware/cashfree';
@@ -19,7 +19,7 @@ router.post(
 router.post(
     '/payment/orders',
     idempotencyMiddleware,
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { projectId, amount, userId } = req.body;
             const result = await paymentOrchestrator.createPaymentOrder(projectId, amount, userId);
@@ -33,7 +33,7 @@ router.post(
 router.post(
     '/escrow/release',
     idempotencyMiddleware,
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { projectId, amount, workerId } = req.body;
             await paymentOrchestrator.releaseFunds(projectId, amount, workerId);
@@ -47,7 +47,7 @@ router.post(
 router.post(
     '/payouts/withdraw',
     idempotencyMiddleware,
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { userId, amount, beneficiaryId, paymentMethod, details } = req.body;
             const result = await payoutService.initiateWithdrawal(userId, amount, beneficiaryId, paymentMethod, details);
@@ -63,7 +63,7 @@ router.post(
 router.post(
     '/payouts/beneficiaries',
     idempotencyMiddleware,
-    async (req, res, next) => {
+    async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { userId, ...details } = req.body;
             const result = await payoutService.addBeneficiary(userId, details);

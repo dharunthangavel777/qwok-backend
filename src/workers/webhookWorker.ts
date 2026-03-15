@@ -37,6 +37,10 @@ export const webhookWorker = new Worker('cashfree-webhooks', async (job: Job) =>
     concurrency: 5 // Parallel processing
 });
 
+webhookWorker.on('error', (err) => {
+    console.error('[webhookWorker] Error:', err.message);
+});
+
 async function handlePaymentSuccess(payload: any) {
     const data = payload.data;
     const orderId = data.order.order_id;

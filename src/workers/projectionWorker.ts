@@ -30,3 +30,7 @@ export const projectionWorker = new Worker('firestore-projections', async (job: 
     connection: queueRedisClient,
     concurrency: 5
 });
+
+projectionWorker.on('error', (err) => {
+    console.error('[projectionWorker] Error:', err.message);
+});

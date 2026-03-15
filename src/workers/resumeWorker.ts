@@ -21,7 +21,7 @@ async function callGemini(prompt: string, text: string): Promise<string> {
     return response.text();
 }
 
-new Worker<ResumeJobData>(
+const resumeWorker = new Worker<ResumeJobData>(
     'resume-parsing',
     async (job: Job<ResumeJobData>) => {
         const { userId, resumeText } = job.data;
@@ -81,6 +81,10 @@ new Worker<ResumeJobData>(
         concurrency: 5, // Gemini 2.0 Flash can handle higher concurrency
     }
 );
+
+resumeWorker.on('error', (err) => {
+    console.error('[resumeWorker] Error:', err.message);
+});
 
 function emitToUser(userId: string, data: any) {
     try {

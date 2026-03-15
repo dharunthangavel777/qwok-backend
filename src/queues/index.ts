@@ -13,6 +13,7 @@ export const webhookQueue = new Queue('cashfree-webhooks', {
         removeOnComplete: true,
     },
 });
+webhookQueue.on('error', (err) => console.error('[webhookQueue] Error:', err.message));
 
 // Projection Queue - Buffers Ledger updates to be synced to Firestore
 export const projectionQueue = new Queue('firestore-projections', {
@@ -26,6 +27,7 @@ export const projectionQueue = new Queue('firestore-projections', {
         removeOnComplete: true,
     },
 });
+projectionQueue.on('error', (err) => console.error('[projectionQueue] Error:', err.message));
 
 // Resume AI Parsing Queue
 export const resumeQueue = new Queue('resume-parsing', {
@@ -40,11 +42,16 @@ export const resumeQueue = new Queue('resume-parsing', {
         removeOnFail: { count: 50 },
     },
 });
+resumeQueue.on('error', (err) => console.error('[resumeQueue] Error:', err.message));
 
 // Setup Queue Events for monitoring
 export const webhookQueueEvents = new QueueEvents('cashfree-webhooks', { connection: queueRedisClient });
 export const projectionQueueEvents = new QueueEvents('firestore-projections', { connection: queueRedisClient });
 export const resumeQueueEvents = new QueueEvents('resume-parsing', { connection: queueRedisClient });
+
+webhookQueueEvents.on('error', (err) => console.error('[webhookQueueEvents] Error:', err.message));
+projectionQueueEvents.on('error', (err) => console.error('[projectionQueueEvents] Error:', err.message));
+resumeQueueEvents.on('error', (err) => console.error('[resumeQueueEvents] Error:', err.message));
 
 webhookQueueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`Webhook Job ${jobId} failed: ${failedReason}`);
